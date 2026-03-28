@@ -7,7 +7,11 @@ import { query } from '../config/db';
 export async function persistBatchedUpdate(docId: string, batchedUpdate: Uint8Array): Promise<void> {
   try {
     await query(
-      `INSERT INTO document_updates (doc_id, update_blob) VALUES ($1, $2)`,
+      `INSERT INTO document_updates (doc_id, update_blob) 
+       SELECT $1, $2 
+       WHERE NOT EXISTS (
+         SELECT 1 FROM document_updates WHERE doc_id = $1 AND update_blob = $2
+       )`,
       [docId, Buffer.from(batchedUpdate)]
     );
     console.log(`[DBPersistence] Saved batched update for doc ${docId}`);

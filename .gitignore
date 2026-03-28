@@ -1,29 +1,81 @@
+# ========================
 # Environment variables
+# ========================
 .env
 .env.*
+.env.local
+.env.development
+.env.production
 
+# ========================
 # Dependencies
+# ========================
 node_modules/
 
+# ========================
 # Build outputs
+# ========================
 dist/
 build/
+out/
+*.tsbuildinfo
 
+# ========================
 # Logs
+# ========================
 *.log
 logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
+# ========================
 # Cache & temp
+# ========================
 .tmp/
 .cache/
+temp/
+tmp/
 
+# ========================
 # Coverage
+# ========================
 coverage/
+.nyc_output/
 
+# ========================
 # OS files
+# ========================
 Thumbs.db
 .DS_Store
 
+# ========================
 # Editor
+# ========================
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# ========================
+# TypeScript
+# ========================
+*.tsbuildinfo
+
+# ========================
+# Docker
+# ========================
+postgres_data/
+docker-data/
+
+# ========================
+# Local database files
+# ========================
+*.sqlite
+*.db
+
+# ========================
+# Misc
+# ========================
+*.bak
+*.cache

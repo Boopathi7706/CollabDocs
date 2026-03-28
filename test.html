@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+
+    <textarea id="editor"></textarea>
+
+    <script type="module">
+        import * as Y from "https://cdn.skypack.dev/yjs";
+
+        const ydoc = new Y.Doc();
+        const ytext = ydoc.getText("content");
+
+        //const ws = new WebSocket("ws://127.0.0.1:3001?docId=test-doc");
+
+        const ws = new WebSocket(
+            "ws://127.0.0.1:3001?docId=550e8400-e29b-41d4-a716-446655440000"
+        );
+
+        ws.binaryType = "arraybuffer";
+
+        ws.onmessage = (event) => {
+            const update = new Uint8Array(event.data);
+            Y.applyUpdate(ydoc, update);
+        };
+
+        ydoc.on("update", (update) => {
+            ws.send(update);
+        });
+
+        const editor = document.getElementById("editor");
+
+        // sync yjs → textarea
+        ytext.observe(() => {
+            const value = ytext.toString();
+            if (editor.value !== value) {
+                editor.value = value;
+            }
+        });
+
+        // sync textarea → yjs
+        editor.addEventListener("input", () => {
+            ydoc.transact(() => {
+                ytext.delete(0, ytext.length);
+                ytext.insert(0, editor.value);
+            });
+        });
+
+    </script>
+
+</body>
+
+</html>

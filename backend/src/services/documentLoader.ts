@@ -11,7 +11,10 @@ export async function loadDocumentFromDB(docId: string): Promise<Y.Doc> {
   const ydoc = new Y.Doc();
 
   try {
-    // 1. Fetch latest snapshot (full Y.encodeStateAsUpdate payload)
+    // 1. Start REPEATABLE READ transaction to prevent race conditions with snapshot deletions
+    await query('BEGIN ISOLATION LEVEL REPEATABLE READ');
+
+    // 2. Fetch latest snapshot (full Y.encodeStateAsUpdate payload)
     const snapshotRes = await query(
       `SELECT snapshot_blob, created_at FROM document_snapshots 
        WHERE doc_id = $1 ORDER BY created_at DESC LIMIT 1`,
@@ -27,12 +30,14 @@ export async function loadDocumentFromDB(docId: string): Promise<Y.Doc> {
       console.log(`[DocumentLoader] Loaded snapshot for doc ${docId}`);
     }
 
-    // 2. Fetch incremental updates since the snapshot
+    // 3. Fetch incremental updates since the snapshot
     const updatesRes = await query(
       `SELECT update_blob FROM document_updates 
        WHERE doc_id = $1 AND created_at > $2 ORDER BY created_at ASC`,
       [docId, lastSnapshotTime]
     );
+
+    await query('COMMIT');
 
     if (updatesRes.rows.length > 0) {
       console.log(`[DocumentLoader] Applying ${updatesRes.rows.length} updates for doc ${docId}`);
@@ -50,6 +55,7 @@ export async function loadDocumentFromDB(docId: string): Promise<Y.Doc> {
 
     return ydoc;
   } catch (error) {
+    await query('ROLLBACK');
     console.error(`[DocumentLoader] Error loading document ${docId} from DB:`, error);
     // Return empty doc on failure, or throw depending on strictness
     throw error;

@@ -1,4 +1,4 @@
-import { WebSocket } from 'ws';
+import { WebSocket, RawData } from 'ws';
 import * as Y from 'yjs';
 import * as syncProtocol from 'y-protocols/sync';
 import * as encoding from 'lib0/encoding';
@@ -30,7 +30,7 @@ export async function setupWebSocket(ws: WebSocket, req: any) {
     ws.send(encoding.toUint8Array(encoder));
 
     // 3. Handle incoming raw binary updates safely
-    ws.on('message', (message: WebSocket.RawData) => {
+    ws.on('message', (message: RawData) => {
       try {
         if (!(message instanceof Buffer) && !(message instanceof ArrayBuffer) && !ArrayBuffer.isView(message)) {
           throw new Error('Invalid incoming transport type');
