@@ -1,19 +1,19 @@
 import React from 'react';
-import Editor from './components/Editor';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Dashboard from './pages/Dashboard';
+import EditorPage from './pages/EditorPage';
 import './App.css';
 
 function App() {
   return (
-    <div className="app-container">
-      <header className="app-header">
-        <h1>CollabDocs</h1>
-        <p>A simple, real-time cooperative rich-text workspace.</p>
-      </header>
-      
-      <main className="main-content">
-        <Editor />
-      </main>
-    </div>
+    <BrowserRouter>
+      <div className="app-container">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/doc/:id" element={<EditorPage />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }
 

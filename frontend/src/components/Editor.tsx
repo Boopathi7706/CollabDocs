@@ -7,31 +7,35 @@ import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
 import "./Editor.css";
 
-// Instantiate the Yjs document
-const ydoc = new Y.Doc();
+interface EditorProps {
+  docId: string;
+}
 
-// Awareness layer handles cursors implicitly for TipTap, 
-// even if backend doesn't sync it (it just sets up the state locally)
-const awareness = new Awareness(ydoc);
-
-// We define a mock provider simply to pass into CollaborationCursor
-const provider = {
-  on: () => { },
-  off: () => { },
-  awareness,
-  document: ydoc,
-};
-
-export const Editor: React.FC = () => {
+export const Editor: React.FC<EditorProps> = ({ docId }) => {
   const [status, setStatus] = useState("Connecting...");
   const wsRef = useRef<WebSocket | null>(null);
+
+  // Isolate document state scoped to this specific docId
+  const { ydoc, provider } = useMemo(() => {
+    const doc = new Y.Doc();
+    const aw = new Awareness(doc);
+    return {
+      ydoc: doc,
+      provider: {
+        on: () => { },
+        off: () => { },
+        awareness: aw,
+        document: doc,
+      }
+    };
+  }, [docId]);
 
   useEffect(() => {
     function connect() {
       if (wsRef.current) return;
 
       console.log("[WS] Connecting...");
-      const ws = new WebSocket("ws://localhost:3001/?docId=550e8400-e29b-41d4-a716-446655440000");
+      const ws = new WebSocket(`ws://localhost:3001/?docId=${docId}`);
       wsRef.current = ws;
 
       ws.binaryType = "arraybuffer";
@@ -80,8 +84,9 @@ export const Editor: React.FC = () => {
         wsRef.current.close();
         wsRef.current = null;
       }
+      ydoc.destroy();
     };
-  }, []);
+  }, [docId, ydoc]);
 
   // Set randomized cursor color logic mapped to this particular instance instance
   const userColor = useMemo(() => {

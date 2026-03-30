@@ -1,0 +1,43 @@
+.editor-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  margin-bottom: 24px;
+}
+
+.back-btn {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: background 0.2s, color 0.2s;
+}
+
+.back-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.doc-id-badge {
+  background: #e2e8f0;
+  color: #64748b;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-family: monospace;
+}
+
+.editor-main {
+  width: 100%;
+}
