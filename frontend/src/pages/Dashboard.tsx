@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./Dashboard.css";
+import Button from "../components/Button";
 
 interface DocumentMeta {
   id: string;
@@ -89,56 +89,62 @@ export const Dashboard: React.FC = () => {
     }).catch((err) => console.error("Failed to delete document", err));
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
-
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>CollabDocs Dashboard</h1>
-        <div className="dashboard-actions">
-          <button className="new-doc-btn" onClick={handleNewDocument}>
-            + New Document
-          </button>
-          <button className="logout-btn" onClick={handleLogout} style={{ marginLeft: "10px", background: "rgba(255, 107, 107, 0.2)", color: "#ff6b6b", border: "1px solid rgba(255, 107, 107, 0.4)", borderRadius: "6px", cursor: "pointer", padding: "8px 16px" }}>
-            Logout
-          </button>
+    <div className="w-full">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Your Documents</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage and collaborate on your files</p>
         </div>
-      </header>
+        <Button onClick={handleNewDocument}>
+          + New Document
+        </Button>
+      </div>
 
-      <div className="document-list">
-        <h2>Your Documents</h2>
+      <div className="w-full">
         {documents.length === 0 ? (
-          <p className="empty-state">No documents yet. Create one!</p>
+          <div className="text-center py-16 bg-white rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No documents yet</h3>
+            <p className="text-gray-500 mb-6">Create your first document to get started</p>
+            <Button onClick={handleNewDocument}>Create First Document</Button>
+          </div>
         ) : (
-          <div className="grid">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {documents.map((doc) => (
               <div 
                 key={doc.id} 
-                className="document-card" 
+                className="bg-white shadow-sm border border-gray-100 rounded-xl p-6 hover:shadow-xl transition-all duration-200 cursor-pointer group flex flex-col justify-between"
                 onClick={() => navigate(`/doc/${doc.id}`)}
               >
-                <div className="card-content">
-                  <div className="title-wrapper">
-                    <input
-                      className="document-title-input"
-                      value={doc.title}
-                      onClick={(e) => e.stopPropagation()} 
-                      onChange={(e) => handleRename(doc.id, e.target.value)}
-                    />
+                <div>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
                     <button 
-                      className="delete-btn" 
+                      className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-full hover:bg-red-50" 
                       onClick={(e) => handleDelete(doc.id, e)}
                       title="Delete document"
                     >
-                      Delete
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
                     </button>
                   </div>
-                  <div className="document-date">
-                    Created: {new Date(doc.createdAt).toLocaleDateString()}
-                  </div>
+                  <input
+                    className="w-full text-lg font-semibold text-gray-900 border-b border-transparent hover:border-gray-300 focus:border-indigo-500 focus:outline-none bg-transparent transition-colors py-1 cursor-text truncate"
+                    value={doc.title}
+                    onClick={(e) => e.stopPropagation()} 
+                    onChange={(e) => handleRename(doc.id, e.target.value)}
+                  />
+                </div>
+                <div className="mt-6 flex items-center text-xs text-gray-400">
+                  <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Created {new Date(doc.createdAt).toLocaleDateString()}
                 </div>
               </div>
             ))}
