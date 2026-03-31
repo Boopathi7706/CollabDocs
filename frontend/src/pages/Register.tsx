@@ -1,111 +1,130 @@
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import "./Auth.css";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Input } from "../components/collabdocs/input";
+import { Button } from "../components/collabdocs/button";
+import { FileText } from "lucide-react";
 
-export const Register: React.FC = () => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [errorParse, setErrorParse] = useState("");
+export default function RegisterPage() {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorParse("");
+    setError("");
 
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch("http://localhost:3001/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setErrorParse(data.error || "Registration failed");
+        setError(data.error || "Registration failed");
         return;
       }
 
-      // Automatically redirect to login explicitly
       navigate("/login");
-    } catch (err) {
-      console.error("Register fetch error", err);
-      setErrorParse("Network error connecting to backend");
+    } catch {
+      setError("Network error — is the backend running?");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full mx-auto bg-white shadow-xl rounded-2xl p-8 border border-gray-100">
-        <div className="text-center mb-8">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-2xl shadow-sm mb-4">
-            C
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 px-4 py-8">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
+      </div>
+
+      <div className="relative w-full max-w-md">
+        <div className="flex flex-col items-center mb-8">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg mb-4">
+            <FileText className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-            Create an account
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Join CollabDocs today
-          </p>
+          <h1 className="text-2xl font-semibold text-foreground">Create your account</h1>
+          <p className="text-sm text-muted-foreground mt-1">Start collaborating with CollabDocs</p>
         </div>
 
-        {errorParse && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm text-center">
-            {errorParse}
-          </div>
-        )}
+        <div className="bg-card rounded-2xl shadow-xl border border-border p-8">
+          {error && (
+            <div className="mb-5 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive text-center">
+              {error}
+            </div>
+          )}
 
-        <form onSubmit={handleRegister} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-            <input 
-              type="text" 
-              required 
-              value={name} 
-              onChange={(e) => setName(e.target.value)} 
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 text-gray-900 shadow-sm"
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <Input
+              label="Full Name"
+              type="text"
               placeholder="John Doe"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input 
-              type="email" 
-              required 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 text-gray-900 shadow-sm"
+            <Input
+              label="Email"
+              type="email"
               placeholder="you@example.com"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input 
-              type="password" 
-              required 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-gray-50 text-gray-900 shadow-sm"
-              placeholder="••••••••"
+            <Input
+              label="Password"
+              type="password"
+              placeholder="Create a strong password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              required
             />
-          </div>
-          <button 
-            type="submit" 
-            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 mt-2"
-          >
-            Create Account
-          </button>
-        </form>
+            <Input
+              label="Confirm Password"
+              type="password"
+              placeholder="Confirm your password"
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+              required
+            />
 
-        <p className="mt-8 text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">
-            Sign in
-          </Link>
-        </p>
+            <Button type="submit" loading={loading} className="w-full" size="lg">
+              Create account
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Already have an account?{" "}
+              <Link
+                to="/login"
+                className="font-medium text-primary hover:text-primary/80 transition-colors"
+              >
+                Sign in
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
-};
-
-export default Register;
+}
