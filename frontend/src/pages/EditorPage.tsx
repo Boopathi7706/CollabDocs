@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Editor from "../components/Editor";
 import "./EditorPage.css";
@@ -6,6 +6,12 @@ import "./EditorPage.css";
 export const EditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!localStorage.getItem("token")) {
+      navigate("/login");
+    }
+  }, [navigate]);
 
   if (!id) {
     return <div>Invalid Document ID</div>;

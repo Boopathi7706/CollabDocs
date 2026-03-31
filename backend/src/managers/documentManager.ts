@@ -1,5 +1,6 @@
 import { WebSocket } from 'ws';
 import * as Y from 'yjs';
+import { query } from '../config/db';
 import { loadDocumentFromDB } from '../services/documentLoader';
 import { persistBatchedUpdate, createSnapshot } from '../services/dbPersistence';
 
@@ -71,6 +72,14 @@ const closingLocks = new Map<string, Promise<void>>();
  * Ensures the document is loaded into memory and attaches the user connection.
  */
 export async function joinDocument(docId: string, ws: WebSocket): Promise<Y.Doc> {
+  const exists = await query(
+    "SELECT id FROM documents WHERE id = $1",
+    [docId]
+  );
+  if (exists.rows.length === 0) {
+    console.warn("[Document] Not found:", docId);
+  }
+
   // Await any in-progress cleanup before trying to read from activeDocuments
   while (closingLocks.has(docId)) {
     console.log(`[DocumentManager] Doc ${docId} is closing. Waiting for cleanup to finish before joining...`);

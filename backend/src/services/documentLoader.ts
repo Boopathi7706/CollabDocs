@@ -1,5 +1,5 @@
 import * as Y from 'yjs';
-import { query } from '../config/db';
+import { pool } from '../config/db';
 
 /**
  * Loads a Yjs Document from PostgreSQL.
@@ -9,15 +9,13 @@ import { query } from '../config/db';
  */
 export async function loadDocumentFromDB(docId: string): Promise<Y.Doc> {
   const ydoc = new Y.Doc();
+  const client = await pool.connect();
 
   try {
-    // 1. Start REPEATABLE READ transaction to prevent race conditions with snapshot deletions
-    await query('BEGIN ISOLATION LEVEL REPEATABLE READ');
+    await client.query("BEGIN");
 
-    // 2. Fetch latest snapshot (full Y.encodeStateAsUpdate payload)
-    const snapshotRes = await query(
-      `SELECT snapshot_blob, created_at FROM document_snapshots 
-       WHERE doc_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    const snapshotRes = await client.query(
+      "SELECT snapshot_blob, created_at FROM document_snapshots WHERE doc_id = $1 ORDER BY created_at DESC LIMIT 1",
       [docId]
     );
 
@@ -30,14 +28,12 @@ export async function loadDocumentFromDB(docId: string): Promise<Y.Doc> {
       console.log(`[DocumentLoader] Loaded snapshot for doc ${docId}`);
     }
 
-    // 3. Fetch incremental updates since the snapshot
-    const updatesRes = await query(
-      `SELECT update_blob FROM document_updates 
-       WHERE doc_id = $1 AND created_at > $2 ORDER BY created_at ASC`,
-      [docId, lastSnapshotTime]
+    const updatesRes = await client.query(
+      "SELECT update_blob FROM document_updates WHERE doc_id = $1 ORDER BY created_at ASC",
+      [docId]
     );
 
-    await query('COMMIT');
+    await client.query("COMMIT");
 
     if (updatesRes.rows.length > 0) {
       console.log(`[DocumentLoader] Applying ${updatesRes.rows.length} updates for doc ${docId}`);
@@ -55,9 +51,11 @@ export async function loadDocumentFromDB(docId: string): Promise<Y.Doc> {
 
     return ydoc;
   } catch (error) {
-    await query('ROLLBACK');
+    await client.query("ROLLBACK");
     console.error(`[DocumentLoader] Error loading document ${docId} from DB:`, error);
     // Return empty doc on failure, or throw depending on strictness
     throw error;
+  } finally {
+    client.release();
   }
 }

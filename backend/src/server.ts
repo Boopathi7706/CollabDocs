@@ -9,6 +9,8 @@ import path from 'path';
 import { setupWebSocket } from './websockets/yjsHandler';
 import { verifyToken } from './auth/jwt';
 import { query } from './config/db';
+import documentRoutes from './routes/documentRoutes';
+import authRoutes from './routes/authRoutes';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
@@ -23,17 +25,11 @@ app.get('/', (req, res) => {
   res.send('CollabDocs Real-time API is running');
 });
 
-// Authentication Placeholder
-app.post('/api/auth/login', (req, res) => {
-  // Generate a valid dummy token so verifyToken doesn't fail
-  const dummyToken = jwt.sign({ id: '123', email: 'test@example.com', name: 'Test User' }, process.env.JWT_SECRET || 'super_secret_jwt_key');
-  res.json({ token: dummyToken, user: { id: '123', name: 'Test User' } });
-});
+// Authentication Routes
+app.use('/api/auth', authRoutes);
 
-// Document CRUD Placeholder
-app.post('/api/documents', (req, res) => {
-  res.json({ id: `doc-${Date.now()}`, title: req.body.title || 'Untitled Document' });
-});
+// Document Persistence API logic
+app.use('/api/documents', documentRoutes);
 
 const server = http.createServer(app);
 
@@ -55,6 +51,8 @@ CREATE TABLE IF NOT EXISTS document_snapshots (
   created_at TIMESTAMP DEFAULT NOW()
 );
 `).catch(console.error);
+
+
 
 let snapshotInProgress = false;
 

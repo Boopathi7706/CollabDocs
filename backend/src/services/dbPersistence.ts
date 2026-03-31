@@ -40,14 +40,19 @@ export async function createSnapshot(docId: string, ydoc: Y.Doc): Promise<void> 
     );
     const nextVersion = versionRes.rows[0].next_version;
 
+    const snapshotTime = new Date();
+
     // Insert new snapshot
     await query(
-      `INSERT INTO document_snapshots (doc_id, snapshot_blob, version) VALUES ($1, $2, $3)`,
-      [docId, Buffer.from(snapshotState), nextVersion]
+      `INSERT INTO document_snapshots (doc_id, snapshot_blob, version, created_at) VALUES ($1, $2, $3, $4)`,
+      [docId, Buffer.from(snapshotState), nextVersion, snapshotTime]
     );
 
     // Delete all incremental updates that are now incorporated into this snapshot
-    await query(`DELETE FROM document_updates WHERE doc_id = $1`, [docId]);
+    await query(
+      "DELETE FROM document_updates WHERE doc_id = $1 AND created_at <= $2",
+      [docId, snapshotTime]
+    );
 
     await query('COMMIT'); 
     console.log(`[DBPersistence] Created snapshot v${nextVersion} for doc ${docId}`);

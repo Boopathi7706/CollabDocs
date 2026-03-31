@@ -61,12 +61,16 @@ export async function setupWebSocket(ws: WebSocket, req: any) {
 
     // 4. Handle Lifecycle: Client disconnects
     ws.on('close', () => {
-      leaveDocument(docId, ws);
+      leaveDocument(docId, ws).catch(err => {
+        console.error("[WebSocket] Cleanup error:", err);
+      });
     });
 
     ws.on('error', (err) => {
       console.error(`[WebSocket] Error for client on doc ${docId}:`, err);
-      leaveDocument(docId, ws);
+      leaveDocument(docId, ws).catch(err => {
+        console.error("[WebSocket] Cleanup error:", err);
+      });
     });
 
   } catch (err) {
