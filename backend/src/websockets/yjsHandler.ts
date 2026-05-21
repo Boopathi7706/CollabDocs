@@ -51,6 +51,16 @@ export async function setupWebSocket(ws: WebSocket, req: any) {
             ws.send(encoding.toUint8Array(encoder));
           }
 
+          // Reject writes from viewer connections — backend enforcement
+          const wsRole = (ws as any).role;
+          if (wsRole === 'viewer') {
+            console.warn('[ViewerWriteBlocked]', {
+              userId: (ws as any).userId,
+              docId: (ws as any).docId || docId
+            });
+            return;
+          }
+
           // Relay native update 
           handleUpdate(docId, update, ws);
         }

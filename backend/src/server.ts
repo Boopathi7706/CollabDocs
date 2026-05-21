@@ -34,7 +34,7 @@ app.use('/api/documents', documentRoutes);
 const server = http.createServer(app);
 
 // Custom WebSocket server setup without relying on y-websocket HTTP server
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ noServer: true });
 
 const documents = new Map<string, {
   clients: Set<any>;
@@ -42,7 +42,11 @@ const documents = new Map<string, {
   updateCount: number;
 }>();
 
-// Ensure table exists
+// Ensure tables exist
+query(`
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS allow_editor_sharing BOOLEAN DEFAULT false;
+`).catch(console.error);
+
 query(`
 CREATE TABLE IF NOT EXISTS document_snapshots (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -50,6 +54,33 @@ CREATE TABLE IF NOT EXISTS document_snapshots (
   snapshot_blob BYTEA NOT NULL,
   created_at TIMESTAMP DEFAULT NOW()
 );
+`).catch(console.error);
+
+query(`
+CREATE TABLE IF NOT EXISTS document_invites (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id    UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  created_by     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  target_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  permission     VARCHAR(20) NOT NULL DEFAULT 'viewer',
+  invite_type    VARCHAR(20) NOT NULL DEFAULT 'restricted',
+  token          TEXT NOT NULL UNIQUE,
+  expires_at     TIMESTAMP NOT NULL,
+  used           BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at     TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_invites_token ON document_invites(token);
+`).catch(console.error);
+
+query(`
+CREATE TABLE IF NOT EXISTS document_access_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  requested_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_requests ON document_access_requests (document_id, requested_by) WHERE status = 'pending';
 `).catch(console.error);
 
 
@@ -176,6 +207,16 @@ wss.on("connection", async (ws, req) => {
   ws.send(update);
 
   ws.on("message", (msg) => {
+    // Reject writes from viewer connections — backend enforcement
+    const wsRole = (ws as any).role;
+    if (wsRole === 'viewer') {
+      console.warn('[ViewerWriteBlocked]', {
+        userId: (ws as any).userId,
+        docId: (ws as any).docId || finalDocId
+      });
+      return;
+    }
+
     Y.applyUpdate(doc.ydoc, new Uint8Array(msg as any));
 
     doc.clients.forEach((client) => {
@@ -202,13 +243,12 @@ wss.on("connection", async (ws, req) => {
   });
 });
 
-/*
 // Handle upgrade requests manually to support authentication before creating a WebSocket connection
 server.on('upgrade', async (request, socket, head) => {
   try {
     const url = new URL(request.url || '', `ws://${request.headers.host}`);
 
-    // Support both path-based routing (/yjs/doc1) and query-based (?docId=doc1) like in test.html
+    // Support both path-based routing (/yjs/doc1) and query-based (?docId=doc1)
     let docId = url.searchParams.get('docId');
     if (!docId) {
       const urlParts = url.pathname.split('/');
@@ -228,12 +268,14 @@ server.on('upgrade', async (request, socket, head) => {
       token = request.headers.authorization.replace('Bearer ', '');
     }
 
-    // In a testing environment, bypass DB checks for the dummy test token if it's identical to the test.html token
+    // In a testing environment, bypass DB checks for the dummy test token
     if (token === 'test' && docId === 'test-doc') {
       wss.handleUpgrade(request, socket, head, (ws) => {
-        // Fix request.url so yjsHandler cleanly parses the docId without query params
-        request.url = `/${docId}`;
+        request.url = `/?docId=${docId}`;
         (ws as any).userId = 'test-user';
+        (ws as any).role = 'editor';
+        (ws as any).docId = docId;
+        (ws as any).connectedAt = Date.now();
         wss.emit('connection', ws, request);
       });
       return;
@@ -252,35 +294,41 @@ server.on('upgrade', async (request, socket, head) => {
       return;
     }
 
-    // Authorization Check
+    // Single query to retrieve the resolved role (owner OR member)
     const accessRes = await query(
-      `SELECT 1 FROM documents WHERE id = $1 AND owner_id = $2
-       UNION
-       SELECT 1 FROM document_members WHERE doc_id = $1 AND user_id = $2`,
+      `SELECT
+         CASE
+           WHEN d.owner_id = $2 THEN 'owner'
+           ELSE dm.role
+         END AS role
+       FROM documents d
+       LEFT JOIN document_members dm ON dm.doc_id = d.id AND dm.user_id = $2
+       WHERE d.id = $1
+         AND (d.owner_id = $2 OR EXISTS (
+           SELECT 1 FROM document_members WHERE doc_id = $1 AND user_id = $2
+         ))
+       LIMIT 1`,
       [docId, user.id]
     );
 
-    // if (accessRes.rows.length === 0) {
-    //   socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-    //   socket.destroy();
-    //   return;
-    // }
-
-    // TEMPORARY: Allow test documents
-    if (process.env.NODE_ENV !== "development") {
-      if (accessRes.rows.length === 0) {
-        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-        socket.destroy();
-        return;
-      }
+    if (accessRes.rows.length === 0) {
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+      socket.destroy();
+      return;
     }
 
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      // Fix request.url so yjsHandler cleanly parses the docId without query params
-      request.url = `/${docId}`;
+    const role = accessRes.rows[0].role || 'viewer';
 
-      // Attach user context
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      // Keep query parameters intact so connection listener parses docId correctly
+      request.url = `/?docId=${docId}`;
+
+      // Attach metadata context
+      (ws as any).role = role;
       (ws as any).userId = user.id;
+      (ws as any).docId = docId;
+      (ws as any).connectedAt = Date.now();
+
       wss.emit('connection', ws, request);
     });
 
@@ -290,7 +338,28 @@ server.on('upgrade', async (request, socket, head) => {
     socket.destroy();
   }
 });
-*/
+
+// 6-hour cleanup interval for invites
+setInterval(async () => {
+  try {
+    // Pass 1: Remove expired invites (used or unused)
+    const expired = await query(
+      `DELETE FROM document_invites WHERE expires_at < NOW()`
+    );
+    // Pass 2: Remove used invites that are older than 7 days (where expires_at is null)
+    const stale = await query(
+      `DELETE FROM document_invites
+       WHERE used = TRUE
+         AND expires_at IS NULL
+         AND created_at < NOW() - INTERVAL '7 days'`
+    );
+    console.log(
+      `[InviteCleanup] Expired: ${expired.rowCount || 0}, Stale used: ${stale.rowCount || 0}`
+    );
+  } catch (err) {
+    console.error('[InviteCleanup] Failed:', err);
+  }
+}, 6 * 60 * 60 * 1000);
 
 server.listen(port, () => {
   console.log(`Server listening on port ${port}`);

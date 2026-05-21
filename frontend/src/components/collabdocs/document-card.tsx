@@ -1,5 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "./button";
+import { useNavigate } from "react-router-dom";
 import { Card } from "./card";
 import { Avatar } from "./avatar";
 import { Badge } from "./badge";
@@ -21,6 +20,7 @@ interface DocumentCardProps {
   status?: "draft" | "published" | "archived";
   onDelete?: (id: string) => void;
   onRename?: (id: string, title: string) => void;
+  permission?: "owner" | "editor" | "viewer";
 }
 
 export function DocumentCard({
@@ -32,6 +32,7 @@ export function DocumentCard({
   status = "draft",
   onDelete,
   onRename,
+  permission,
 }: DocumentCardProps) {
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
@@ -70,19 +71,26 @@ export function DocumentCard({
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <h3
-                className="font-semibold text-foreground line-clamp-1 cursor-pointer"
-                onDoubleClick={() => setEditing(true)}
-              >
-                {localTitle}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3
+                  className="font-semibold text-foreground line-clamp-1 cursor-pointer"
+                  onDoubleClick={() => !permission && setEditing(true)}
+                >
+                  {localTitle}
+                </h3>
+                {permission && (
+                  <Badge variant={permission === "editor" ? "info" : "default"} className="text-[10px] px-1.5 py-0 capitalize">
+                    {permission}
+                  </Badge>
+                )}
+              </div>
             )}
             <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
               <span className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 {lastEdited || createdAt}
               </span>
-              {status && (
+              {!permission && status && (
                 <Badge variant={statusVariant[status]} className="text-[10px] px-1.5 py-0">
                   {status}
                 </Badge>
@@ -91,40 +99,42 @@ export function DocumentCard({
           </div>
         </div>
 
-        {/* Menu Button */}
-        <div className="relative shrink-0">
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors opacity-0 group-hover:opacity-100"
-          >
-            <MoreVertical className="h-4 w-4" />
-          </button>
+        {/* Menu Button - Only show for own documents */}
+        {!permission && (onDelete || onRename) && (
+          <div className="relative shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors opacity-0 group-hover:opacity-100"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
 
-          {showMenu && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-8 z-20 w-36 rounded-xl bg-card border border-border shadow-lg py-1">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setEditing(true); setShowMenu(false); }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
-                >
-                  Rename
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete?.(id);
-                    setShowMenu(false);
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+            {showMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                <div className="absolute right-0 top-8 z-20 w-36 rounded-xl bg-card border border-border shadow-lg py-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditing(true); setShowMenu(false); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-secondary transition-colors"
+                  >
+                    Rename
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete?.(id);
+                      setShowMenu(false);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Active Users */}

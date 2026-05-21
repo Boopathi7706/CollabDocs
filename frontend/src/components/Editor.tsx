@@ -9,9 +9,10 @@ import "./Editor.css";
 
 interface EditorProps {
   docId: string;
+  editable?: boolean;
 }
 
-export const Editor: React.FC<EditorProps> = ({ docId }) => {
+export const Editor: React.FC<EditorProps> = ({ docId, editable = true }) => {
   const [status, setStatus] = useState("Connecting...");
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -31,11 +32,24 @@ export const Editor: React.FC<EditorProps> = ({ docId }) => {
   }, [docId]);
 
   useEffect(() => {
+    let isMounted = true;
+
     function connect() {
       if (wsRef.current) return;
 
       console.log("[WS] Connecting...");
-      const ws = new WebSocket(`ws://localhost:3001/?docId=${docId}`);
+      // const ws = new WebSocket(`ws://localhost:3001/?docId=${docId}`);
+      const token = localStorage.getItem("token");
+
+      const ws = new WebSocket(
+        `ws://localhost:3001/?docId=${docId}&token=${token}`
+      );
+
+      console.log("[WS] Token:", token);
+      console.log("[WS] URL:",
+        `ws://localhost:3001/?docId=${docId}&token=${token}`
+      );
+
       wsRef.current = ws;
 
       ws.binaryType = "arraybuffer";
@@ -53,10 +67,15 @@ export const Editor: React.FC<EditorProps> = ({ docId }) => {
       };
 
       ws.onclose = () => {
+        if (!isMounted) {
+          return;
+        }
         console.log("[WS] Disconnected");
         setStatus("Disconnected");
         wsRef.current = null;
-        setTimeout(connect, 1000);
+        if (isMounted) {
+          setTimeout(connect, 1000);
+        }
       };
 
       ws.onerror = (err) => {
@@ -79,14 +98,27 @@ export const Editor: React.FC<EditorProps> = ({ docId }) => {
     ydoc.on("update", handleUpdate);
 
     return () => {
+      isMounted = false;
       ydoc.off("update", handleUpdate);
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
+      const ws = wsRef.current;
+      if (
+        ws &&
+        (
+          ws.readyState === WebSocket.OPEN ||
+          ws.readyState === WebSocket.CONNECTING
+        )
+      ) {
+        ws.close();
       }
+      wsRef.current = null;
+    };
+  }, [docId, ydoc, editable]);
+
+  useEffect(() => {
+    return () => {
       ydoc.destroy();
     };
-  }, [docId, ydoc]);
+  }, [ydoc]);
 
   // Set randomized cursor color logic mapped to this particular instance instance
   const userColor = useMemo(() => {
@@ -113,6 +145,12 @@ export const Editor: React.FC<EditorProps> = ({ docId }) => {
     ],
     content: "",
   });
+
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(editable);
+    }
+  }, [editor, editable]);
 
   return (
     <div className="editor-wrapper">

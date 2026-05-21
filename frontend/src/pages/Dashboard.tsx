@@ -25,10 +25,19 @@ function authHeaders() {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [documents, setDocuments] = useState<DocumentMeta[]>([]);
+  const [sharedDocuments, setSharedDocuments] = useState<any[]>([]);
+  const [accessRequests, setAccessRequests] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [connectionStatus] = useState<"connected" | "disconnected" | "reconnecting">("connected");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published" | "archived">("all");
+
+  const fetchAccessRequests = () => {
+    fetch(`${API}/api/documents/access-requests`, { headers: authHeaders() })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setAccessRequests(data))
+      .catch((err) => console.error("Failed to load access requests", err));
+  };
 
   // Auth guard
   useEffect(() => {
@@ -38,6 +47,7 @@ export default function Dashboard() {
       return;
     }
 
+    // Fetch own documents
     fetch(`${API}/api/documents`, { headers: authHeaders() })
       .then((res) => {
         if (res.status === 401) {
@@ -49,9 +59,22 @@ export default function Dashboard() {
       })
       .then((data) => setDocuments(data))
       .catch((err) => console.error("Failed to load documents", err));
+
+    // Fetch shared documents
+    fetch(`${API}/api/documents/shared-with-me`, { headers: authHeaders() })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setSharedDocuments(data))
+      .catch((err) => console.error("Failed to load shared docs", err));
+
+    // Fetch access requests
+    fetchAccessRequests();
   }, [navigate]);
 
   const filteredDocuments = documents.filter((doc) =>
+    doc.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredSharedDocuments = sharedDocuments.filter((doc) =>
     doc.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -89,16 +112,97 @@ export default function Dashboard() {
     }).catch((err) => console.error("Failed to delete", err));
   };
 
+  const handleApproveAccess = async (requestId: string, docId: string, requestedBy: string) => {
+    try {
+      const res = await fetch(`${API}/api/documents/${docId}/approve-request`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ requestId, userId: requestedBy }),
+      });
+      if (res.ok) {
+        setAccessRequests(accessRequests.filter((r) => r.id !== requestId));
+      } else {
+        console.error("Failed to approve access request");
+      }
+    } catch (err) {
+      console.error("Failed to approve request", err);
+    }
+  };
+
+  const handleRejectAccess = async (requestId: string, docId: string) => {
+    try {
+      const res = await fetch(`${API}/api/documents/${docId}/reject-request`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ requestId }),
+      });
+      if (res.ok) {
+        setAccessRequests(accessRequests.filter((r) => r.id !== requestId));
+      } else {
+        console.error("Failed to reject access request");
+      }
+    } catch (err) {
+      console.error("Failed to reject request", err);
+    }
+  };
+
+  const hasDocuments = documents.length > 0 || sharedDocuments.length > 0;
+  const hasFilteredDocuments = filteredDocuments.length > 0 || filteredSharedDocuments.length > 0;
+
   return (
     <div>
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">My Documents</h1>
-          <p className="mt-1 text-muted-foreground">Create, edit, and collaborate on your documents</p>
+          <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
+            {sharedDocuments.length > 0 ? "Documents" : "My Documents"}
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            {sharedDocuments.length > 0
+              ? "Create, edit, and collaborate on documents"
+              : "Create, edit, and collaborate on your documents"}
+          </p>
         </div>
         <ConnectionStatus status={connectionStatus} showIcon />
       </div>
+
+      {/* Access Requests Panel */}
+      {accessRequests.length > 0 && (
+        <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-md animate-in fade-in duration-200">
+          <h2 className="text-lg font-semibold text-foreground mb-1">Access Requests</h2>
+          <p className="text-xs text-muted-foreground mb-4">Users requesting edit permissions on your documents</p>
+          <div className="divide-y divide-border">
+            {accessRequests.map((req) => (
+              <div key={req.id} className="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center sm:justify-between first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <span className="block text-sm font-medium text-foreground truncate">
+                    {req.userName || req.userEmail}
+                  </span>
+                  <span className="block text-xs text-muted-foreground truncate">
+                    Requested edit access for: <span className="font-semibold text-primary">{req.documentTitle}</span>
+                  </span>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    onClick={() => handleApproveAccess(req.id, req.documentId, req.requestedBy)}
+                  >
+                    Approve
+                  </Button>
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={() => handleRejectAccess(req.id, req.documentId)}
+                  >
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Actions Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
@@ -160,46 +264,97 @@ export default function Dashboard() {
       </div>
 
       {/* Documents Grid/List */}
-      {filteredDocuments.length > 0 ? (
-        <div
-          className={
-            viewMode === "grid"
-              ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
-              : "flex flex-col gap-3"
-          }
-        >
-          {filteredDocuments.map((doc) => (
-            <DocumentCard
-              key={doc.id}
-              id={doc.id}
-              title={doc.title}
-              createdAt={new Date(doc.createdAt).toLocaleDateString("en-US", {
-                month: "short", day: "numeric", year: "numeric"
-              })}
-              status="draft"
-              activeUsers={[]}
-              onDelete={handleDelete}
-              onRename={handleRename}
-            />
-          ))}
-        </div>
-      ) : (
+      {!hasDocuments ? (
         <EmptyState
           title="No documents yet"
-          description={
-            searchQuery
-              ? "No documents match your search. Try a different query."
-              : "Create your first document to get started collaborating."
-          }
+          description="Create your first document or redeem an invite to get started collaborating."
           action={
-            !searchQuery && (
-              <Button onClick={handleNewDocument}>
-                <Plus className="h-4 w-4" />
-                Create Document
-              </Button>
-            )
+            <Button onClick={handleNewDocument}>
+              <Plus className="h-4 w-4" />
+              Create Document
+            </Button>
           }
         />
+      ) : !hasFilteredDocuments ? (
+        <EmptyState
+          title="No results found"
+          description={`No documents match "${searchQuery}". Try a different query.`}
+        />
+      ) : (
+        <div className="space-y-10">
+          {/* My Documents Section */}
+          {documents.length > 0 && (
+            <div>
+              {sharedDocuments.length > 0 && (
+                <div className="mb-4">
+                  <h2 className="text-xl font-semibold text-foreground">My Documents</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Documents you created and own</p>
+                </div>
+              )}
+              {filteredDocuments.length > 0 ? (
+                <div
+                  className={
+                    viewMode === "grid"
+                      ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                      : "flex flex-col gap-3"
+                  }
+                >
+                  {filteredDocuments.map((doc) => (
+                    <DocumentCard
+                      key={doc.id}
+                      id={doc.id}
+                      title={doc.title}
+                      createdAt={new Date(doc.createdAt).toLocaleDateString("en-US", {
+                        month: "short", day: "numeric", year: "numeric"
+                      })}
+                      status="draft"
+                      activeUsers={[]}
+                      onDelete={handleDelete}
+                      onRename={handleRename}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No matching own documents.</p>
+              )}
+            </div>
+          )}
+
+          {/* Shared With Me Section */}
+          {sharedDocuments.length > 0 && (
+            <div>
+              <div className="mb-4">
+                <h2 className="text-xl font-semibold text-foreground">Shared With Me</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">Documents shared with you by other collaborators</p>
+              </div>
+              {filteredSharedDocuments.length > 0 ? (
+                <div
+                  className={
+                    viewMode === "grid"
+                      ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                      : "flex flex-col gap-3"
+                  }
+                >
+                  {filteredSharedDocuments.map((doc) => (
+                    <DocumentCard
+                      key={doc.id}
+                      id={doc.id}
+                      title={doc.title}
+                      createdAt={new Date(doc.createdAt).toLocaleDateString("en-US", {
+                        month: "short", day: "numeric", year: "numeric"
+                      })}
+                      status="draft"
+                      activeUsers={[]}
+                      permission={doc.permission as "owner" | "editor" | "viewer"}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No matching shared documents.</p>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

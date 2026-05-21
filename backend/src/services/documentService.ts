@@ -14,7 +14,7 @@ export async function createDocument(title: string, ownerId: string) {
 
 export async function getDocuments(ownerId: string) {
   const res = await query(
-    `SELECT id, title, created_at AS "createdAt"
+    `SELECT id, title, created_at AS "createdAt", owner_id AS "ownerId"
      FROM documents
      WHERE owner_id = $1
      ORDER BY created_at DESC`,
