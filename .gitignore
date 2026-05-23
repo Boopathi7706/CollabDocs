@@ -1,5 +1,5 @@
 # ========================
-# Environment variables
+# Environment Variables
 # ========================
 .env
 .env.*
@@ -13,27 +13,28 @@
 node_modules/
 
 # ========================
-# Build outputs
+# Build Outputs
 # ========================
 dist/
 build/
 out/
-*.tsbuildinfo
+dist-ssr/
 
 # ========================
 # Logs
 # ========================
-*.log
 logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+lerna-debug.log*
 
 # ========================
-# Cache & temp
+# Cache & Temp
 # ========================
-.tmp/
 .cache/
+.tmp/
 temp/
 tmp/
 
@@ -44,18 +45,23 @@ coverage/
 .nyc_output/
 
 # ========================
-# OS files
+# OS Files
 # ========================
 Thumbs.db
 .DS_Store
 
 # ========================
-# Editor
+# Editor Files
 # ========================
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
 # ========================
 # TypeScript
@@ -69,7 +75,7 @@ postgres_data/
 docker-data/
 
 # ========================
-# Local database files
+# Local Databases
 # ========================
 *.sqlite
 *.db
@@ -79,3 +85,4 @@ docker-data/
 # ========================
 *.bak
 *.cache
+*.local
