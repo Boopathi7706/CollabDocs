@@ -1,10 +1,5 @@
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-import path from 'path';
-
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key';
+import { JWT_SECRET } from '../config/env';
 
 export interface AuthUser {
   id: string;

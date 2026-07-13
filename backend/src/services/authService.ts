@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuid } from 'uuid';
 import { query } from '../config/db';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key';
+import { JWT_SECRET } from '../config/env';
 
 export async function registerUser(email: string, passwordRaw: string, name: string) {
   // Hash password using bcrypt

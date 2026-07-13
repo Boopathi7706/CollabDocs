@@ -4,20 +4,35 @@ import { WebSocketServer } from 'ws';
 import * as Y from 'yjs';
 import http from 'http';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import path from 'path';
+import { PORT, CORS_ORIGINS } from './config/env';
 import { setupWebSocket } from './websockets/yjsHandler';
 import { verifyToken } from './auth/jwt';
 import { query } from './config/db';
 import documentRoutes from './routes/documentRoutes';
 import authRoutes from './routes/authRoutes';
-
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+import * as decoding from 'lib0/decoding';
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = PORT;
 
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    // If request has no origin (like curl, same-origin, etc.), allow it
+    if (!origin) return callback(null, true);
+    
+    const isAllowed = CORS_ORIGINS.some(allowedOrigin => {
+      if (allowedOrigin === '*') return true;
+      return allowedOrigin === origin;
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // Basic API route
@@ -115,13 +130,15 @@ async function createSnapshot(docId: string, ydoc: Y.Doc) {
 }
 
 wss.on("connection", async (ws, req) => {
-  const url = new URL(req.url || "", "http://localhost");
+  // Base URL is only needed for WHATWG URL parser to extract searchParams; the host is never used.
+  const url = new URL(req.url || "", "http://internal");
   const docId = url.searchParams.get("docId");
 
   console.log("[WebSocket] Doc ID:", docId);
 
   const finalDocId = docId || "default-doc";
   (ws as any).docId = finalDocId;
+  console.log('[WS ROLE]', (ws as any).role);
 
   if (!documents.has(finalDocId)) {
     const ydoc = new Y.Doc();
@@ -207,23 +224,38 @@ wss.on("connection", async (ws, req) => {
   ws.send(update);
 
   ws.on("message", (msg) => {
-    // Reject writes from viewer connections — backend enforcement
-    const wsRole = (ws as any).role;
-    if (wsRole === 'viewer') {
-      console.warn('[ViewerWriteBlocked]', {
-        userId: (ws as any).userId,
-        docId: (ws as any).docId || finalDocId
+    try {
+      const update = new Uint8Array(msg as any);
+      const decoder = decoding.createDecoder(update);
+      const messageType = decoding.readVarUint(decoder);
+
+      // Add temporary debug logging
+      console.log('[IncomingMessage]', {
+        role: (ws as any).role,
+        messageType
       });
-      return;
-    }
 
-    Y.applyUpdate(doc.ydoc, new Uint8Array(msg as any));
-
-    doc.clients.forEach((client) => {
-      if (client !== ws && client.readyState === 1) { // 1 = OPEN
-        client.send(msg);
+      if (messageType === 0) {
+        const role = (ws as any).role;
+        if (role === 'viewer') {
+          console.warn('[ViewerWriteBlocked]', {
+            userId: (ws as any).userId,
+            docId: (ws as any).docId || finalDocId
+          });
+          return;
+        }
       }
-    });
+
+      Y.applyUpdate(doc.ydoc, update);
+
+      doc.clients.forEach((client) => {
+        if (client !== ws && client.readyState === 1) { // 1 = OPEN
+          client.send(msg);
+        }
+      });
+    } catch (err) {
+      console.error("[WebSocket] Message handling error:", err);
+    }
   });
 
   ws.on("close", () => {
@@ -361,8 +393,8 @@ setInterval(async () => {
   }
 }, 6 * 60 * 60 * 1000);
 
-server.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+server.listen(Number(port), '0.0.0.0', () => {
+  console.log(`Server listening on port ${port} (exposed to all interfaces)`);
 });
 
 process.on("uncaughtException", (err) => {

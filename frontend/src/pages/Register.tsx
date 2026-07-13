@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { getApiUrl } from "../config/api";
 import { Input } from "../components/collabdocs/input";
 import { Button } from "../components/collabdocs/button";
 import { FileText } from "lucide-react";
@@ -26,7 +27,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:3001/api/auth/register", {
+      const res = await fetch(getApiUrl("/api/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

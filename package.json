@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "tunnel": "node scripts/start-tunnels.js"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2"
   }

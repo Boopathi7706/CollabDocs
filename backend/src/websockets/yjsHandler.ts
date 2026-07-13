@@ -21,6 +21,7 @@ export async function setupWebSocket(ws: WebSocket, req: any) {
   try {
     // 1. Join document manager (Load doc + Attach client)
     const ydoc = await joinDocument(docId, ws);
+    console.log('[WS ROLE]', (ws as any).role);
 
     // 2. Initial Sync Step 1: Request state vector from client
     // By sending sync step 1, we ask the client to tell us what it already has.
@@ -40,7 +41,23 @@ export async function setupWebSocket(ws: WebSocket, req: any) {
         const decoder = decoding.createDecoder(update);
         const messageType = decoding.readVarUint(decoder);
 
+        // Add temporary debug logging
+        console.log('[IncomingMessage]', {
+          role: (ws as any).role,
+          messageType
+        });
+
         if (messageType === 0) {
+          // Reject writes from viewer connections — backend enforcement BEFORE readSyncMessage applies it
+          const role = (ws as any).role;
+          if (role === 'viewer') {
+            console.warn('[ViewerWriteBlocked]', {
+              userId: (ws as any).userId,
+              docId: (ws as any).docId || docId
+            });
+            return;
+          }
+
           // 0 = sync protocol (Step 1, Step 2, or Update)
           const encoder = encoding.createEncoder();
           encoding.writeVarUint(encoder, 0);
@@ -49,16 +66,6 @@ export async function setupWebSocket(ws: WebSocket, req: any) {
           
           if (replyNeeded) {
             ws.send(encoding.toUint8Array(encoder));
-          }
-
-          // Reject writes from viewer connections — backend enforcement
-          const wsRole = (ws as any).role;
-          if (wsRole === 'viewer') {
-            console.warn('[ViewerWriteBlocked]', {
-              userId: (ws as any).userId,
-              docId: (ws as any).docId || docId
-            });
-            return;
           }
 
           // Relay native update 

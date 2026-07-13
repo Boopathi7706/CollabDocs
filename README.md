@@ -268,3 +268,45 @@ A working real-time collaborative editor with:
 * Clean and scalable architecture
 
 ---
+
+## 19. Local Cloudflare Tunnel Setup (Lightweight Automation)
+
+CollabDocs comes with a lightweight development automation system that launches Cloudflare Tunnels for local collaboration in a single command.
+
+### Setup & Usage Instructions
+
+1. **Install cloudflared**:
+   Ensure you have the Cloudflare Tunnel CLI (`cloudflared` or `cloudflared.exe`) installed globally:
+   - **macOS (via Homebrew)**: `brew install cloudflared`
+   - **Windows (via Winget)**: `winget install Cloudflare.cloudflared`
+   - **Linux**: See official docs
+   - **Manual Downloads**: [Cloudflare Tunnel Downloads](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
+
+2. **Recommended Multi-Terminal Developer Workflow**:
+   Vite loads environment variables (`import.meta.env`) during initial startup. To guarantee that the updated `VITE_API_URL` is loaded into the frontend, follow this precise startup sequence:
+
+   * **Terminal 1 (Backend)**: Start the backend server:
+     ```bash
+     cd backend && npm run dev
+     ```
+
+   * **Terminal 2 (Tunnel Orchestration)**: Spin up the secure public tunnels:
+     ```bash
+     npm run tunnel
+     ```
+     This automatically:
+     - Configures backend and frontend tunnels.
+     - Performs a readiness polling check to ensure the tunnels are live.
+     - Safely writes/updates the new URL into `frontend/.env.local` without modifying other env vars.
+
+   * **Terminal 3 (Frontend)**: Start (or restart) your frontend dev server:
+     ```bash
+     cd frontend && npm run dev
+     ```
+     *Note: If the backend tunnel URL changes later (e.g. on restarting the tunnel script), you **must** stop the frontend dev server and restart it to guarantee Vite loads the updated `VITE_API_URL`.*
+
+3. **Share and Collaborate**:
+   - Copy the printed **Frontend URL** and share it with your collaborators!
+   - Real-time synchronization and secure WebSocket connection upgrades (`wss://`) will handle routing automatically without further configuration.
+
+
