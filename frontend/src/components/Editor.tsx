@@ -6,6 +6,7 @@ import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
 import "./Editor.css";
+import { getWsUrl } from "../config/api";
 
 interface EditorProps {
   docId: string;
@@ -38,17 +39,13 @@ export const Editor: React.FC<EditorProps> = ({ docId, editable = true }) => {
       if (wsRef.current) return;
 
       console.log("[WS] Connecting...");
-      // const ws = new WebSocket(`ws://localhost:3001/?docId=${docId}`);
       const token = localStorage.getItem("token");
 
-      const ws = new WebSocket(
-        `ws://localhost:3001/?docId=${docId}&token=${token}`
-      );
+      const wsUrl = getWsUrl(docId, token);
+      const ws = new WebSocket(wsUrl);
 
       console.log("[WS] Token:", token);
-      console.log("[WS] URL:",
-        `ws://localhost:3001/?docId=${docId}&token=${token}`
-      );
+      console.log("[WS] URL:", wsUrl);
 
       wsRef.current = ws;
 

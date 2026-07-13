@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { getApiUrl } from "../config/api";
 import Editor from "../components/Editor";
 import { Button } from "../components/collabdocs/button";
 import { Presence } from "../components/collabdocs/presence";
@@ -68,7 +69,7 @@ export default function EditorPage() {
 
         // 1. If invite token is present, redeem it first
         if (inviteToken) {
-          const redeemRes = await fetch(`http://localhost:3001/api/documents/${id}/redeem`, {
+          const redeemRes = await fetch(getApiUrl(`/api/documents/${id}/redeem`), {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -90,7 +91,7 @@ export default function EditorPage() {
         }
 
         // 2. Query document access details
-        const accessRes = await fetch(`http://localhost:3001/api/documents/${id}/access`, {
+        const accessRes = await fetch(getApiUrl(`/api/documents/${id}/access`), {
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
@@ -107,7 +108,7 @@ export default function EditorPage() {
         }
 
         // 3. Fetch actual document details to populate document title
-        const docRes = await fetch(`http://localhost:3001/api/documents/${id}`, {
+        const docRes = await fetch(getApiUrl(`/api/documents/${id}`), {
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
@@ -135,7 +136,7 @@ export default function EditorPage() {
     const interval = setInterval(async () => {
       try {
         const token = localStorage.getItem("token");
-        const accessRes = await fetch(`http://localhost:3001/api/documents/${id}/access`, {
+        const accessRes = await fetch(getApiUrl(`/api/documents/${id}/access`), {
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
@@ -176,7 +177,7 @@ export default function EditorPage() {
   const handleRequestEditAccess = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:3001/api/documents/${id}/request-access`, {
+      const res = await fetch(getApiUrl(`/api/documents/${id}/request-access`), {
         method: "POST",
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

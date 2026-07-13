@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key';
+import { JWT_SECRET } from '../config/env';
 
 // Extend Express Request type to include user
 declare global {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "./button";
 import { Copy, Link2, X } from "lucide-react";
+import { getApiUrl } from "../../config/api";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ export function ShareModal({ isOpen, onClose, docId, onShareSuccess, userPermiss
       setShareLink(null);
       // Fetch document access/policy details
       const token = localStorage.getItem("token");
-      fetch(`http://localhost:3001/api/documents/${docId}/access`, {
+      fetch(getApiUrl(`/api/documents/${docId}/access`), {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
@@ -48,7 +49,7 @@ export function ShareModal({ isOpen, onClose, docId, onShareSuccess, userPermiss
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:3001/api/documents/${docId}/share`, {
+      const res = await fetch(getApiUrl(`/api/documents/${docId}/share`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -66,7 +67,7 @@ export function ShareModal({ isOpen, onClose, docId, onShareSuccess, userPermiss
       //const generatedLink = `${window.location.origin}/doc/${docId}?invite=${data.token}`;
       const generatedLink =
         `${window.location.origin}/doc/${docId}?invite=${data.token}`;
-      console.log("[ShareLink]", generatedLink);
+      console.log('[GeneratedLink]', generatedLink);
       setShareLink(generatedLink);
       onShareSuccess("Invite link generated successfully!");
     } catch (err: any) {
@@ -79,7 +80,7 @@ export function ShareModal({ isOpen, onClose, docId, onShareSuccess, userPermiss
   const handleTogglePolicy = async (checked: boolean) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:3001/api/documents/${docId}/toggle-editor-sharing`, {
+      const res = await fetch(getApiUrl(`/api/documents/${docId}/toggle-editor-sharing`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

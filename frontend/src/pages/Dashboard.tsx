@@ -5,8 +5,7 @@ import { DocumentCard } from "../components/collabdocs/document-card";
 import { EmptyState } from "../components/collabdocs/empty-state";
 import { ConnectionStatus } from "../components/collabdocs/connection-status";
 import { Plus, Search, Grid3X3, List, Filter } from "lucide-react";
-
-const API = "http://localhost:3001";
+import { getApiUrl } from "../config/api";
 
 interface DocumentMeta {
   id: string;
@@ -33,7 +32,7 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published" | "archived">("all");
 
   const fetchAccessRequests = () => {
-    fetch(`${API}/api/documents/access-requests`, { headers: authHeaders() })
+    fetch(getApiUrl("/api/documents/access-requests"), { headers: authHeaders() })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => setAccessRequests(data))
       .catch((err) => console.error("Failed to load access requests", err));
@@ -48,7 +47,7 @@ export default function Dashboard() {
     }
 
     // Fetch own documents
-    fetch(`${API}/api/documents`, { headers: authHeaders() })
+    fetch(getApiUrl("/api/documents"), { headers: authHeaders() })
       .then((res) => {
         if (res.status === 401) {
           localStorage.removeItem("token");
@@ -61,7 +60,7 @@ export default function Dashboard() {
       .catch((err) => console.error("Failed to load documents", err));
 
     // Fetch shared documents
-    fetch(`${API}/api/documents/shared-with-me`, { headers: authHeaders() })
+    fetch(getApiUrl("/api/documents/shared-with-me"), { headers: authHeaders() })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => setSharedDocuments(data))
       .catch((err) => console.error("Failed to load shared docs", err));
@@ -80,7 +79,7 @@ export default function Dashboard() {
 
   const handleNewDocument = async () => {
     try {
-      const res = await fetch(`${API}/api/documents`, {
+      const res = await fetch(getApiUrl("/api/documents"), {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({ title: "Untitled Document" }),
@@ -96,7 +95,7 @@ export default function Dashboard() {
 
   const handleRename = (id: string, newTitle: string) => {
     setDocuments(documents.map((d) => d.id === id ? { ...d, title: newTitle } : d));
-    fetch(`${API}/api/documents/${id}`, {
+    fetch(getApiUrl(`/api/documents/${id}`), {
       method: "PATCH",
       headers: authHeaders(),
       body: JSON.stringify({ title: newTitle }),
@@ -106,7 +105,7 @@ export default function Dashboard() {
   const handleDelete = (id: string) => {
     if (!window.confirm("Are you sure you want to delete this document?")) return;
     setDocuments(documents.filter((d) => d.id !== id));
-    fetch(`${API}/api/documents/${id}`, {
+    fetch(getApiUrl(`/api/documents/${id}`), {
       method: "DELETE",
       headers: authHeaders(),
     }).catch((err) => console.error("Failed to delete", err));
@@ -114,7 +113,7 @@ export default function Dashboard() {
 
   const handleApproveAccess = async (requestId: string, docId: string, requestedBy: string) => {
     try {
-      const res = await fetch(`${API}/api/documents/${docId}/approve-request`, {
+      const res = await fetch(getApiUrl(`/api/documents/${docId}/approve-request`), {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({ requestId, userId: requestedBy }),
@@ -131,7 +130,7 @@ export default function Dashboard() {
 
   const handleRejectAccess = async (requestId: string, docId: string) => {
     try {
-      const res = await fetch(`${API}/api/documents/${docId}/reject-request`, {
+      const res = await fetch(getApiUrl(`/api/documents/${docId}/reject-request`), {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({ requestId }),
